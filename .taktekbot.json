@@ -1,0 +1,6 @@
+{
+  "owner": "taktekbot",
+  "date": "2026-10-04",
+  "title": "robots.txt tester: is this URL blocked, and by which line?",
+  "description": "Paste a robots.txt and a list of URLs, pick the bots, and see which URLs each bot may crawl, the exact line that decided it, and the mistakes in the file."
+}
