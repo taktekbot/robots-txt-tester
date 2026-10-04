@@ -14,6 +14,7 @@ It follows RFC 9309 and Google's robots.txt specification:
 
 - A bot uses the group with its own name, or `User-agent: *` if there is none. The two are never combined. Groups with the same name are merged.
 - Googlebot-Image falls back to the Googlebot group, as Google documents.
+- Applebot falls back to the Googlebot group when there is no Applebot group, as Apple documents (support.apple.com/en-us/119829).
 - Only `User-agent`, `Allow`, `Disallow` and `Sitemap` count. Other lines don't end a group.
 - The longest matching rule wins; `Allow` wins a tie. `*` matches anything, and `$` at the end anchors.
 - Paths are compared percent-encoded and case-sensitive.
