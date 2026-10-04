@@ -67,7 +67,7 @@
         <div class="rbt-field">
           <label for="rbt-file">robots.txt</label>
           <textarea id="rbt-file" rows="10" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="User-agent: *&#10;Disallow: /admin/&#10;&#10;Sitemap: https://yoursite.com/sitemap.xml"></textarea>
-          <p class="rbt-hint">Open <code>yoursite.com/robots.txt</code>, copy everything, and paste it here. Or paste the new version you're about to upload. <button type="button" id="rbt-sample" class="rbt-link">Try a sample</button></p>
+          <p class="rbt-hint">Open <code>yoursite.com/robots.txt</code>, copy everything, and paste it here. Or paste the new version you're about to upload. If that address shows "page not found", you have no robots.txt, and nothing is blocked. <button type="button" id="rbt-sample" class="rbt-link">Try a sample</button></p>
         </div>
         <div class="rbt-field">
           <label for="rbt-urls">URLs or paths to test, one per line</label>
@@ -97,7 +97,7 @@
 
       <h2>Mistakes this catches</h2>
       <ul>
-        <li><strong>A leftover <code>Disallow: /</code></strong> from a staging site, a theme or a "discourage search engines" setting. It blocks the whole site.</li>
+        <li><strong>A leftover <code>Disallow: /</code></strong> from a staging site, a theme, a plugin or a "block search engines" setting. It blocks the whole site. (WordPress's "Discourage search engines" box no longer writes it: since version 5.3 it adds a noindex tag instead.)</li>
         <li><strong><code>Noindex:</code> in robots.txt.</strong> Google ignores it. To keep a page out of search results, let it be crawled and put a <code>noindex</code> robots meta tag or <code>X-Robots-Tag</code> header on it. If robots.txt blocks the page, Google never sees the tag, and the URL can still be listed from links.</li>
         <li><strong><code>Crawl-delay:</code></strong>. Google ignores it. Some other crawlers read it.</li>
         <li><strong>Full URLs in rules.</strong> <code>Disallow: https://yoursite.com/private</code> matches nothing. Rules take the path only: <code>Disallow: /private</code>.</li>
@@ -106,6 +106,17 @@
         <li><strong>Rules above the first <code>User-agent</code></strong>, which belong to no group and are ignored.</li>
         <li><strong>A web page instead of a text file.</strong> Some servers answer <code>/robots.txt</code> with an HTML page.</li>
       </ul>
+
+      <h2 id="where-to-change">Where to change your robots.txt</h2>
+      <p>Found a line to fix? Where you fix it depends on what your site is built with. On most site builders there's no file to upload: the builder writes robots.txt for you, from a settings screen.</p>
+      <ul>
+        <li><strong>WordPress.</strong> WordPress serves a robots.txt of its own until you add a real file. First look at Settings → Reading → Search engine visibility, and untick "Discourage search engines" if you didn't mean it. If the bad line is still there, an SEO plugin may be writing it: in Yoast it's under Yoast SEO → Tools → File editor (<a href="https://yoast.com/help/how-to-edit-robots-txt-through-yoast-seo/">Yoast's guide</a>), in Rank Math under General Settings → Edit robots.txt (<a href="https://rankmath.com/kb/how-to-edit-robots-txt-with-rank-math/">Rank Math's guide</a>), or a <code>robots.txt</code> file may sit in the site's top folder on your hosting, where your host's file manager can edit it.</li>
+        <li><strong>Wix.</strong> In the dashboard, SEO &amp; GEO, then Tools and settings, then Robots.txt Editor. "Reset to Default" puts back Wix's own file, which lets every bot crawl every page (<a href="https://support.wix.com/en/article/editing-your-sites-robotstxt-file">Wix's guide</a>).</li>
+        <li><strong>Squarespace.</strong> You can't edit the file. Settings → Crawlers has a "Block search engine crawlers" box; when it's on, Squarespace adds <code>Disallow: /</code>. To hide one page, use "Hide page from search results" in that page's SEO settings instead (<a href="https://support.squarespace.com/hc/en-us/articles/21829426828045-Hiding-your-site-from-search-results">Squarespace's guide</a>).</li>
+        <li><strong>Shopify.</strong> Shopify writes a default file that suits most shops. To change it, go to Online Store, open the theme's menu, choose Edit code, and add a <code>robots.txt.liquid</code> template. Keep Shopify's default rules in it and add yours, because Shopify updates the defaults over time (<a href="https://shopify.dev/docs/storefronts/themes/seo/robots-txt">Shopify's guide</a>).</li>
+        <li><strong>A site you upload yourself</strong> (plain hosting, Netlify, Cloudflare Pages, GitHub Pages). Robots.txt is a plain text file named exactly <code>robots.txt</code> in the top folder of the site, next to the home page's <code>index.html</code>. Edit it, upload it, then open <code>yoursite.com/robots.txt</code> to check the new version is the one being served.</li>
+      </ul>
+      <p>Whichever it is, paste the changed file back in here before you save, and test the same URLs again.</p>
 
       <h2>What robots.txt can't do</h2>
       <ul>
@@ -316,7 +327,7 @@
             } else if (!bots.length) {
               html += '<p class="rbt-big">Tick at least one bot above.</p>';
             } else {
-              if (big.length) html += '<p class="rbt-big"><span class="rbt-bad">Your home page is blocked</span> for ' + esc(big.join(', ')) + '.</p>';
+              if (big.length) html += '<p class="rbt-big"><span class="rbt-bad">Your home page is blocked</span> for ' + esc(big.join(', ')) + '.</p><p>If you didn\u2019t mean that, here\u2019s <a href="#where-to-change">where to change it</a> on WordPress, Wix, Squarespace, Shopify or your own hosting.</p>';
               html += bots.map(function (b) {
                 var c = blockedCount[b[0]] || 0;
                 var g = groupFor(r.groups, b[1]), hasStar = r.groups.some(function (gr) { return gr.agents.some(function (a) { return a.token === '*'; }); });
