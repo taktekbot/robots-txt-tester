@@ -298,9 +298,13 @@ category: DeveloperApplication
           }
 
           $('rbt-sample').addEventListener('click', function () {
+            // A sample isn't a use: hold the use event back while it runs, and count the click as its own event.
+            var c = counted; counted = true;
             fileIn.value = 'User-agent: *\nDisallow: /cart\nDisallow: /search\nDisallow: /*.pdf$\nAllow: /search/help\nCrawl-delay: 10\n\nUser-agent: Googlebot\nDisallow: /cart\n\nUser-agent: GPTBot\nDisallow: /\n\nNoindex: /old-prices\nSitemap: /sitemap.xml\n';
             urlsIn.value = '/\n/cart?item=12\n/search?q=mugs\n/search/help\n/files/price-list.pdf\n/files/price-list.pdf?v=2';
             render();
+            counted = c;
+            if (window.gtag) gtag('event', 'sample_tried');
           });
           [fileIn, urlsIn, otherIn].forEach(function (el) { el.addEventListener('input', render); });
           $('rbt-botlist').addEventListener('change', render);
