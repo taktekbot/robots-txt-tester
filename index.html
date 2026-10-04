@@ -86,7 +86,7 @@
       <p>These are the rules Google publishes for its crawlers, from RFC 9309 and Google's own <a href="https://developers.google.com/search/docs/crawling-indexing/robots/robots_txt">robots.txt specification</a>. Most other well-behaved bots, Bing's included, follow the same standard.</p>
       <ol>
         <li><strong>One group per bot.</strong> A bot uses the group with its own name and ignores the rest. Only if there is no group with its name does it use <code>User-agent: *</code>. The two are never combined. So if you add a <code>User-agent: Googlebot</code> group, Googlebot stops reading your <code>*</code> rules: copy any you still want into its group.</li>
-        <li><strong>Some bots answer to two names.</strong> Googlebot-Image and Googlebot-Video use their own group if there is one, and the Googlebot group if not.</li>
+        <li><strong>Some bots answer to two names.</strong> Googlebot-Image and Googlebot-Video use their own group if there is one, and the Googlebot group if not. Apple's Applebot does the same: with no <code>User-agent: Applebot</code> group, it <a href="https://support.apple.com/en-us/119829">follows your Googlebot group</a>, not your <code>*</code> rules. So a <code>Googlebot</code> group also decides what Siri, Spotlight and Safari can find.</li>
         <li><strong>Groups with the same name are merged.</strong> Two <code>User-agent: *</code> groups in one file count as one.</li>
         <li><strong>The longest matching rule wins.</strong> <code>Allow: /shop/sale</code> beats <code>Disallow: /shop</code> for <code>/shop/sale/mugs</code>, because it's longer. The order of the lines doesn't matter.</li>
         <li><strong>A tie goes to Allow.</strong> If an <code>Allow</code> and a <code>Disallow</code> are the same length and both match, the page is allowed.</li>
@@ -164,7 +164,7 @@
             ['ClaudeBot', ['claudebot'], false],
             ['PerplexityBot', ['perplexitybot'], false],
             ['Google-Extended', ['google-extended'], false],
-            ['Applebot', ['applebot'], false]
+            ['Applebot', ['applebot', 'googlebot'], false]
           ];
           // Misspellings Google's open-source parser accepts (github.com/google/robotstxt).
           var TYPOS = { 'useragent': 'user-agent', 'user agent': 'user-agent', 'dissallow': 'disallow', 'dissalow': 'disallow', 'disalow': 'disallow', 'diasllow': 'disallow', 'disallaw': 'disallow', 'site-map': 'sitemap' };
@@ -241,7 +241,7 @@
           function groupFor(groups, tokens) {
             for (var i = 0; i < tokens.length; i++) {
               var hit = groups.filter(function (g) { return g.agents.some(function (a) { return a.token === tokens[i]; }); });
-              if (hit.length) return { label: hit[0].agents.filter(function (a) { return a.token === tokens[i]; })[0].text, groups: hit };
+              if (hit.length) return { label: hit[0].agents.filter(function (a) { return a.token === tokens[i]; })[0].text, token: tokens[i], groups: hit };
             }
             var star = groups.filter(function (g) { return g.agents.some(function (a) { return a.token === '*'; }); });
             return star.length ? { label: '*', groups: star } : { label: null, groups: [] };
@@ -319,9 +319,11 @@
               if (big.length) html += '<p class="rbt-big"><span class="rbt-bad">Your home page is blocked</span> for ' + esc(big.join(', ')) + '.</p>';
               html += bots.map(function (b) {
                 var c = blockedCount[b[0]] || 0;
-                var own = groupFor(r.groups, b[1]).label, hasStar = r.groups.some(function (g) { return g.agents.some(function (a) { return a.token === '*'; }); });
-                return '<p><strong>' + esc(b[0]) + '</strong>: ' + (c ? '<span class="rbt-bad">' + c + ' of ' + tests.length + ' blocked</span>' : '<span class="rbt-ok">all ' + tests.length + ' allowed</span>') +
-                  (own && own !== '*' && hasStar ? '. It has its own group, so your <code>User-agent: *</code> rules don\u2019t apply to it.' : '') + '</p>';
+                var g = groupFor(r.groups, b[1]), hasStar = r.groups.some(function (gr) { return gr.agents.some(function (a) { return a.token === '*'; }); });
+                var note = '';
+                if (g.token && g.token !== b[1][0]) note = '. It has no group of its own, so it follows your <code>User-agent: ' + esc(g.label) + '</code> group' + (hasStar ? ', not your <code>*</code> rules' : '') + '.';
+                else if (g.token && hasStar) note = '. It has its own group, so your <code>User-agent: *</code> rules don\u2019t apply to it.';
+                return '<p><strong>' + esc(b[0]) + '</strong>: ' + (c ? '<span class="rbt-bad">' + c + ' of ' + tests.length + ' blocked</span>' : '<span class="rbt-ok">all ' + tests.length + ' allowed</span>') + note + '</p>';
               }).join('');
             }
             html += '</div>';
