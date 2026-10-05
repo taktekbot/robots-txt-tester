@@ -67,7 +67,7 @@
         <div class="rbt-field">
           <label for="rbt-file">robots.txt</label>
           <textarea id="rbt-file" rows="10" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="User-agent: *&#10;Disallow: /admin/&#10;&#10;Sitemap: https://yoursite.com/sitemap.xml"></textarea>
-          <p class="rbt-hint">Open <code>yoursite.com/robots.txt</code>, copy everything, and paste it here. Or paste the new version you're about to upload. If that address shows "page not found", you have no robots.txt, and nothing is blocked. <button type="button" id="rbt-sample" class="rbt-link">Try a sample</button></p>
+          <p class="rbt-hint">Open <code>yoursite.com/robots.txt</code>, copy everything, and paste it here. Or paste the new version you're about to upload. If that address shows "page not found", you have no robots.txt, and nothing is blocked. If it shows only lines starting with <code>#</code> about "content signals", that's a notice Cloudflare serves for sites without a robots.txt of their own: paste it anyway. <button type="button" id="rbt-sample" class="rbt-link">Try a sample</button></p>
         </div>
         <div class="rbt-field">
           <label for="rbt-urls">URLs or paths to test, one per line</label>
@@ -117,6 +117,15 @@
         <li><strong>A site you upload yourself</strong> (plain hosting, Netlify, Cloudflare Pages, GitHub Pages). Robots.txt is a plain text file named exactly <code>robots.txt</code> in the top folder of the site, next to the home page's <code>index.html</code>. Edit it, upload it, then open <code>yoursite.com/robots.txt</code> to check the new version is the one being served.</li>
       </ul>
       <p>Whichever it is, paste the changed file back in here before you save, and test the same URLs again.</p>
+
+      <h2 id="cloudflare">If your site is behind Cloudflare</h2>
+      <p>Cloudflare is a service that sits in front of many websites, often set up by whoever built the site. To check, look up your domain's nameservers on <a href="https://toolbox.googleapps.com/apps/dig/#NS/">Google's dig page</a> (pick NS). If they end in <code>ns.cloudflare.com</code>, your site is behind it, and three things can change what bots see:</p>
+      <ul>
+        <li><strong>Lines Cloudflare adds to your robots.txt.</strong> With its managed robots.txt switched on, Cloudflare puts its own block at the top of your file, between <code># BEGIN Cloudflare Managed content</code> and <code># END Cloudflare Managed Content</code>. It has a <code>User-Agent: *</code> group with <code>Allow: /</code>, then <code>Disallow: /</code> for AI training bots such as GPTBot, ClaudeBot, Google-Extended and CCBot. Search bots aren't on the list. You won't find these lines on your own site: they're switched on and off in the Cloudflare dashboard, under Security, then Settings, "Set your preference to block training in robots.txt".</li>
+        <li><strong>A notice instead of "page not found".</strong> On sites with no robots.txt of their own, Cloudflare can serve a page of comments about "content signals". It has no rules, so it blocks nothing.</li>
+        <li><strong>Blocks that robots.txt never shows.</strong> Under Security, Settings, "Configure AI bot policies", Cloudflare can turn away search, agent and training bots at the door, before your site sees them. Your robots.txt can allow a bot and the bot still gets nothing. Since 15 September 2026, newly added domains start with training and agent bots blocked on pages that show ads, and search bots allowed.</li>
+      </ul>
+      <p>One side effect of the first one: Cloudflare's <code>Allow: /</code> and your own <code>User-agent: *</code> rules end up in the same group, and a tie goes to Allow. So a <code>Disallow: /</code> in your own <code>*</code> group no longer blocks the whole site, by Google's rules above. This page flags that when it sees it. Sources: Cloudflare's <a href="https://developers.cloudflare.com/bots/additional-configurations/managed-robots-txt/">managed robots.txt</a> and <a href="https://developers.cloudflare.com/bots/additional-configurations/block-ai-bots/">AI bot policies</a> pages.</p>
 
       <h2>What robots.txt can't do</h2>
       <ul>
@@ -180,6 +189,7 @@
           // Misspellings Google's open-source parser accepts (github.com/google/robotstxt).
           var TYPOS = { 'useragent': 'user-agent', 'user agent': 'user-agent', 'dissallow': 'disallow', 'dissalow': 'disallow', 'disalow': 'disallow', 'diasllow': 'disallow', 'disallaw': 'disallow', 'site-map': 'sitemap' };
           var IGNORED = {
+            'content-signal': '<code>Content-signal</code> says what your content may be used for (search, AI answers, AI training). Cloudflare adds it, and it isn\u2019t part of the robots.txt standard, so it doesn\u2019t allow or block crawling. This page skips it.',
             'crawl-delay': 'Google ignores <code>Crawl-delay</code>. Some other crawlers read it.',
             'noindex': 'Google ignores <code>Noindex</code> in robots.txt. To keep a page out of search, allow crawling and add a <code>noindex</code> robots meta tag or <code>X-Robots-Tag</code> header to the page itself.',
             'nofollow': 'Google ignores <code>Nofollow</code> in robots.txt. Use a robots meta tag on the page instead.',
@@ -208,8 +218,13 @@
             var bytes = window.TextEncoder ? new TextEncoder().encode(txt).length : txt.length;
             if (bytes > 512000) warns.push([0, 'This file is over 500 KiB. Google ignores everything after the first 500 KiB.']);
             if (/^\s*</.test(txt)) warns.push([1, 'This looks like a web page, not a text file. If your server answers <code>/robots.txt</code> with HTML, bots can’t read any rules from it.']);
+            var cf = null;
             txt.split(/\r\n|\r|\n/).forEach(function (raw, i) {
-              var ln = i + 1, line = raw.replace(/#.*/, '').trim();
+              var ln = i + 1; n = ln;
+              // Cloudflare's managed robots.txt marks its own lines with these comments.
+              if (/^\s*#\s*BEGIN Cloudflare Managed/i.test(raw)) cf = { from: ln, to: 0 };
+              if (cf && !cf.to && /^\s*#\s*END Cloudflare Managed/i.test(raw)) cf.to = ln;
+              var line = raw.replace(/#.*/, '').trim();
               if (!line) return;
               var m = line.match(/^([A-Za-z_-]+(?: [A-Za-z]+)?)\s*:\s*(.*)$/);
               if (!m) { warns.push([ln, 'Not a robots.txt line, so it’s ignored: <code>' + esc(line) + '</code>. Each line should look like <code>Field: value</code>.']); return; }
@@ -246,7 +261,8 @@
             groups.forEach(function (g) {
               g.rules.forEach(function (r) { r.norm = enc(r.path[0] === '/' || r.path[0] === '*' ? r.path : '/' + r.path); });
             });
-            return { groups: groups, warns: warns, sitemaps: sitemaps };
+            if (cf && !cf.to) cf.to = n;
+            return { groups: groups, warns: warns, sitemaps: sitemaps, cf: cf };
           }
 
           function groupFor(groups, tokens) {
@@ -313,21 +329,30 @@
             var noAgents = !r.groups.length;
 
             // Whole-site blocks are the costly mistake: say them first.
-            var big = [];
+            var big = [], bigOwn = false;
             if (!noAgents) {
-              bots.forEach(function (b) { var d = decide(r.groups, b[1], '/'); if (!d.ok) big.push(b[0]); });
+              bots.forEach(function (b) {
+                var d = decide(r.groups, b[1], '/');
+                if (d.ok) return;
+                big.push(b[0]);
+                if (!r.cf || d.rule.line < r.cf.from || d.rule.line > r.cf.to) bigOwn = true;
+              });
             }
             var tests = urls.list.length ? urls.list : [{ shown: '/ (your home page)', path: '/', norm: '/' }];
             var blockedCount = {};
             tests.forEach(function (u) { bots.forEach(function (b) { if (!decide(r.groups, b[1], u.norm).ok) blockedCount[b[0]] = (blockedCount[b[0]] || 0) + 1; }); });
 
             html += '<div class="rbt-sum">';
-            if (noAgents) {
+            if (noAgents && /content.?signal/i.test(txt)) {
+              html += '<p class="rbt-big">This is Cloudflare\u2019s notice, and it blocks nothing.</p><p>Cloudflare shows it on sites that have no robots.txt of their own. It\u2019s all comments, with no <code>User-agent</code> line, so every bot may crawl every page. Cloudflare can still turn bots away with its own settings, which robots.txt never shows: see <a href="#cloudflare">if your site is behind Cloudflare</a>.</p>';
+            } else if (noAgents) {
               html += '<p class="rbt-big">No <code>User-agent</code> line, so this file blocks nothing.</p><p>Every bot may crawl every page. If that’s what you want, it’s fine (so is having no robots.txt at all).</p>';
             } else if (!bots.length) {
               html += '<p class="rbt-big">Tick at least one bot above.</p>';
             } else {
-              if (big.length) html += '<p class="rbt-big"><span class="rbt-bad">Your home page is blocked</span> for ' + esc(big.join(', ')) + '.</p><p>If you didn\u2019t mean that, here\u2019s <a href="#where-to-change">where to change it</a> on WordPress, Wix, Squarespace, Shopify or your own hosting.</p>';
+              if (big.length) html += '<p class="rbt-big"><span class="rbt-bad">Your home page is blocked</span> for ' + esc(big.join(', ')) + '.</p>' + (bigOwn
+                ? '<p>If you didn\u2019t mean that, here\u2019s <a href="#where-to-change">where to change it</a> on WordPress, Wix, Squarespace, Shopify or your own hosting.</p>'
+                : '<p>The line that blocks it was written by Cloudflare. If you didn\u2019t mean that, it\u2019s changed in Cloudflare: see <a href="#cloudflare">if your site is behind Cloudflare</a>.</p>');
               html += bots.map(function (b) {
                 var c = blockedCount[b[0]] || 0;
                 var g = groupFor(r.groups, b[1]), hasStar = r.groups.some(function (gr) { return gr.agents.some(function (a) { return a.token === '*'; }); });
@@ -337,9 +362,26 @@
                 return '<p><strong>' + esc(b[0]) + '</strong>: ' + (c ? '<span class="rbt-bad">' + c + ' of ' + tests.length + ' blocked</span>' : '<span class="rbt-ok">all ' + tests.length + ' allowed</span>') + note + '</p>';
               }).join('');
             }
+            if (r.cf) {
+              html += '<p>Lines ' + r.cf.from + ' to ' + r.cf.to + ' were written by Cloudflare, not by your website. They ask AI training bots to stay away and leave search bots alone. You change them in Cloudflare, not on your site: see <a href="#cloudflare">if your site is behind Cloudflare</a>.</p>';
+            }
             html += '</div>';
 
             var warns = r.warns.slice();
+            // Cloudflare's block has its own User-agent: * group with Allow: /. Groups with the same name merge,
+            // and a tie goes to Allow, so it cancels the site's own Disallow: / for every bot that reads the * group.
+            if (r.cf) {
+              var inCf = function (ln) { return ln >= r.cf.from && ln <= r.cf.to; }, cfAllow = false, ownBlock = 0;
+              r.groups.forEach(function (g) {
+                if (!g.agents.some(function (a) { return a.token === '*'; })) return;
+                g.rules.forEach(function (x) {
+                  if (x.norm !== '/') return;
+                  if (x.allow && inCf(x.line)) cfAllow = true;
+                  if (!x.allow && !inCf(x.line)) ownBlock = ownBlock || x.line;
+                });
+              });
+              if (cfAllow && ownBlock) warns.push([ownBlock, 'This <code>Disallow: /</code> is cancelled by Cloudflare\u2019s <code>Allow: /</code> above it. Both are in a <code>User-agent: *</code> group, groups with the same name are merged, and a tie goes to Allow. So, by these rules, bots that follow your <code>*</code> group may crawl the whole site. If you meant to block them, give each bot its own group, or turn the managed robots.txt off in Cloudflare.']);
+            }
             if (urls.hosts.length > 1) warns.push([0, 'Your URLs are on ' + urls.hosts.length + ' different hosts (' + esc(urls.hosts.join(', ')) + '). Each host has its own robots.txt; this file only applies to the one it’s served from.']);
             if (r.sitemaps === 0 && !noAgents) warns.push([0, 'No <code>Sitemap:</code> line. It’s optional, but it’s an easy way to tell every search engine where your sitemap is.']);
             if (warns.length) {
@@ -355,7 +397,7 @@
                 return '<div class="rbt-url"><h3>' + esc(u.shown) + '</h3><ul class="rbt-res">' + bots.map(function (b) {
                   var d = decide(r.groups, b[1], u.norm);
                   var why = d.group === null ? 'No group for this bot and no <code>User-agent: *</code> group.'
-                    : (d.rule ? 'Line ' + d.rule.line + ': <code>' + esc(d.rule.text) + '</code>' : 'No rule matches')
+                    : (d.rule ? 'Line ' + d.rule.line + ': <code>' + esc(d.rule.text) + '</code>' + (r.cf && d.rule.line >= r.cf.from && d.rule.line <= r.cf.to ? ' (written by Cloudflare)' : '') : 'No rule matches')
                       + ', in the group for <code>' + esc(d.group) + '</code>.';
                   return '<li><span class="rbt-res__bot">' + esc(b[0]) + '</span><span class="rbt-res__why">' +
                     (d.ok ? '<span class="rbt-ok">Allowed.</span> ' : '<span class="rbt-bad">Blocked.</span> ') + why + '</span></li>';
