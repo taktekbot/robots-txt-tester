@@ -60,14 +60,13 @@
       <p class="eyebrow"><a href="/tools/">Free tool</a></p>
       <h1>robots.txt tester: is this URL blocked, and by which line?</h1>
       <p class="stand">Google&#x27;s matching rules, run in your browser. Nothing you paste leaves this page.</p>
-<p>To find out whether robots.txt blocks a page, take the group of rules for the bot's name (or the <code>User-agent: *</code> group if it has none), find every <code>Allow</code> and <code>Disallow</code> line that matches the start of the URL's path, and the longest one wins. This page does that for you, for many URLs and bots at once, and shows the line that decided each answer.</p>
-      <p>Use it before you publish a new robots.txt, or when Search Console says a page is "Blocked by robots.txt" and you can't see why. Google's Search Console no longer has its own tester: its URL Inspection tool only checks the live file, one URL at a time, on a site you've verified. Nothing you paste here is sent anywhere.</p>
+<p>Paste a robots.txt and the addresses to test. You see which bots may crawl each one, and the line that decided it. <button type="button" id="rbt-sample" class="rbt-link">Try a sample</button></p>
 
       <div class="rbt">
         <div class="rbt-field">
           <label for="rbt-file">robots.txt</label>
           <textarea id="rbt-file" rows="10" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="User-agent: *&#10;Disallow: /admin/&#10;&#10;Sitemap: https://yoursite.com/sitemap.xml"></textarea>
-          <p class="rbt-hint">Open <code>yoursite.com/robots.txt</code>, copy everything, and paste it here. Or paste the new version you're about to upload. If that address shows "page not found", you have no robots.txt, and nothing is blocked. If it shows only lines starting with <code>#</code> about "content signals", that's a notice Cloudflare serves for sites without a robots.txt of their own: paste it anyway. <button type="button" id="rbt-sample" class="rbt-link">Try a sample</button></p>
+          <p class="rbt-hint">Open <code>yoursite.com/robots.txt</code>, copy everything, and paste it here. Or paste the new version you're about to upload. If that address shows "page not found", you have no robots.txt, and nothing is blocked. If it shows only lines starting with <code>#</code> about "content signals", that's a notice Cloudflare serves for sites without a robots.txt of their own: paste it anyway.</p>
         </div>
         <div class="rbt-field">
           <label for="rbt-urls">URLs or paths to test, one per line</label>
@@ -82,7 +81,11 @@
 
       <div id="rbt-out" aria-live="polite"></div>
 
+      <h2>When to use it</h2>
+      <p>Use it before you publish a new robots.txt, or when Search Console says a page is "Blocked by robots.txt" and you can't see why. Google's Search Console no longer has its own tester: its URL Inspection tool only checks the live file, one URL at a time, on a site you've verified. Nothing you paste here is sent anywhere.</p>
+
       <h2>How the decision is made</h2>
+      <p>To find out whether robots.txt blocks a page, take the group of rules for the bot's name (or the <code>User-agent: *</code> group if it has none), find every <code>Allow</code> and <code>Disallow</code> line that matches the start of the URL's path, and the longest one wins. This page does that for you, for many URLs and bots at once, and shows the line that decided each answer.</p>
       <p>These are the rules Google publishes for its crawlers, from RFC 9309 and Google's own <a href="https://developers.google.com/search/docs/crawling-indexing/robots/robots_txt">robots.txt specification</a>. Most other well-behaved bots, Bing's included, follow the same standard.</p>
       <ol>
         <li><strong>One group per bot.</strong> A bot uses the group with its own name and ignores the rest. Only if there is no group with its name does it use <code>User-agent: *</code>. The two are never combined. So if you add a <code>User-agent: Googlebot</code> group, Googlebot stops reading your <code>*</code> rules: copy any you still want into its group.</li>
