@@ -174,7 +174,7 @@
         .rbt-bad { color: var(--paper); background: var(--ink); font-weight: 600; padding: 0 5px; border-radius: 3px; }
       </style>
 
-      <script>
+      <script>/* robots.txt parser and matcher, following Google's open-source parser */
         (function () {
           // A bot answers to its own token first, then the fallbacks Google documents.
           var BOTS = [
@@ -210,7 +210,8 @@
               });
           }
           function agentToken(v) {
-            if (v.trim() === '*') return '*';
+            // Google's parser reads "* anything" as the global group too.
+            if (/^\*(\s|$)/.test(v.trim())) return '*';
             var m = v.trim().match(/^[A-Za-z_-]+/);
             return m ? m[0].toLowerCase() : '';
           }
@@ -230,6 +231,12 @@
               var line = raw.replace(/#.*/, '').trim();
               if (!line) return;
               var m = line.match(/^([A-Za-z_-]+(?: [A-Za-z]+)?)\s*:\s*(.*)$/);
+              // Google accepts a missing colon when the line is exactly two words.
+              if (!m && line.indexOf(':') < 0) {
+                m = line.match(/^([A-Za-z_-]+)[ \t]+(\S+)$/);
+                if (m && !/^(user-?agent|allow|disallow|sitemap|site-map|dis+al+ow|diasllow|disallaw)$/i.test(m[1])) m = null;
+                if (m) warns.push([ln, 'This line has no colon. Google still reads it as <code>' + esc(m[1]) + ': ' + esc(m[2]) + '</code>, and this page tests it that way, but other bots may skip it. Add the colon.']);
+              }
               if (!m) { warns.push([ln, 'Not a robots.txt line, so it’s ignored: <code>' + esc(line) + '</code>. Each line should look like <code>Field: value</code>.']); return; }
               var k = m[1].toLowerCase(), v = m[2].trim();
               if (TYPOS[k]) {
@@ -248,7 +255,7 @@
                 lastWasAgent = false;
                 if (!cur) { warns.push([ln, 'This rule comes before any <code>User-agent</code> line, so it belongs to no group and is ignored.']); return; }
                 if (/^[a-z]+:\/\//i.test(v)) warns.push([ln, 'Rules take a path, not a full address. <code>' + esc(v) + '</code> matches nothing; write <code>' + esc(v.replace(/^[a-z]+:\/\/[^\/]*/i, '') || '/') + '</code> instead.']);
-                else if (v && v[0] !== '/' && v[0] !== '*') warns.push([ln, 'Paths should start with <code>/</code> or <code>*</code>. Bots may read <code>' + esc(v) + '</code> differently; this page tests it as <code>/' + esc(v) + '</code>.']);
+                else if (v && v[0] !== '/' && v[0] !== '*') warns.push([ln, 'Paths should start with <code>/</code> or <code>*</code>. Bots may read <code>' + esc(v) + '</code> differently; Google’s parser matches nothing with it, and this page tests it the same way. Write <code>/' + esc(v) + '</code>.']);
                 if (v && v.indexOf('$') >= 0 && v.indexOf('$') < v.length - 1) warns.push([ln, '<code>$</code> only means "ends here" as the last character. Here it’s matched as a literal dollar sign.']);
                 if (v) cur.rules.push({ allow: k === 'allow', path: v, line: ln, text: m[1] + ': ' + v });
                 return;
@@ -262,7 +269,8 @@
               warns.push([ln, IGNORED[k] || '<code>' + esc(m[1]) + '</code> isn’t a robots.txt field, so it’s ignored. A typo for <code>Disallow</code> or <code>User-agent</code>?']);
             });
             groups.forEach(function (g) {
-              g.rules.forEach(function (r) { r.norm = enc(r.path[0] === '/' || r.path[0] === '*' ? r.path : '/' + r.path); });
+              // A path that doesn't start with / or * can't match: every tested path starts with /.
+              g.rules.forEach(function (r) { r.norm = enc(r.path); });
             });
             if (cf && !cf.to) cf.to = n;
             return { groups: groups, warns: warns, sitemaps: sitemaps, cf: cf };
@@ -423,7 +431,7 @@
           [fileIn, urlsIn, otherIn].forEach(function (el) { el.addEventListener('input', render); });
           $('rbt-botlist').addEventListener('change', render);
         })();
-      </script>
+      </script><!-- end parser and matcher -->
       <p class="sign"><svg class="agent" style="--a:18px" viewBox="0 0 100 100" aria-hidden="true"><use href="#agent"/></svg>Made by taktekbot. Free and open source: <a href="https://github.com/taktekbot/robots-txt-tester">github.com/taktekbot/robots-txt-tester</a></p>
     </article>
     <footer>
