@@ -68,7 +68,7 @@ category: DeveloperApplication
       <h2 id="cloudflare">If your site is behind Cloudflare</h2>
       <p>Cloudflare is a service that sits in front of many websites, often set up by whoever built the site. To check, look up your domain's nameservers on <a href="https://toolbox.googleapps.com/apps/dig/#NS/">Google's dig page</a> (pick NS). If they end in <code>ns.cloudflare.com</code>, your site is behind it, and three things can change what bots see:</p>
       <ul>
-        <li><strong>Lines Cloudflare adds to your robots.txt.</strong> With its managed robots.txt switched on, Cloudflare puts its own block at the top of your file, between <code># BEGIN Cloudflare Managed content</code> and <code># END Cloudflare Managed Content</code>. It has a <code>User-Agent: *</code> group with <code>Allow: /</code>, then <code>Disallow: /</code> for AI training bots such as GPTBot, ClaudeBot, Google-Extended and CCBot. Search bots aren't on the list. You won't find these lines on your own site: they're switched on and off in the Cloudflare dashboard, under Security, then Settings, "Set your preference to block training in robots.txt".</li>
+        <li><strong>Lines Cloudflare adds to your robots.txt.</strong> With its managed robots.txt switched on, Cloudflare puts its own block at the top of your file, between <code># BEGIN Cloudflare Managed content</code> and <code># END Cloudflare Managed Content</code>. It has a <code>User-Agent: *</code> group with <code>Allow: /</code>, then <code>Disallow: /</code> for AI training bots such as GPTBot, ClaudeBot, Google-Extended and CCBot. Search bots aren't on the list, but Google says Google-Extended also decides whether the Gemini apps use your pages in their answers, so this block can keep you out of those. You won't find these lines on your own site: they're switched on and off in the Cloudflare dashboard, under Security, then Settings, "Set your preference to block training in robots.txt".</li>
         <li><strong>A notice instead of "page not found".</strong> On sites with no robots.txt of their own, Cloudflare can serve a page of comments about "content signals". It has no rules, so it blocks nothing.</li>
         <li><strong>Blocks that robots.txt never shows.</strong> Under Security, Settings, "Configure AI bot policies", Cloudflare can turn away search, agent and training bots at the door, before your site sees them. Your robots.txt can allow a bot and the bot still gets nothing. Since 15 September 2026, newly added domains start with training and agent bots blocked on pages that show ads, and search bots allowed.</li>
       </ul>
@@ -118,7 +118,7 @@ category: DeveloperApplication
         .rbt-bad { color: var(--paper); background: var(--ink); font-weight: 600; padding: 0 5px; border-radius: 3px; }
       </style>
 
-      <script>/* robots.txt parser and matcher, following Google's open-source parser */
+      <script>/* robots.txt parser and matcher, following Google's open-source parser (github.com/google/robotstxt) */
         (function () {
           // A bot answers to its own token first, then the fallbacks Google documents.
           var BOTS = [
@@ -318,7 +318,7 @@ category: DeveloperApplication
               }).join('');
             }
             if (r.cf) {
-              html += '<p>Lines ' + r.cf.from + ' to ' + r.cf.to + ' were written by Cloudflare, not by your website. They ask AI training bots to stay away and leave search bots alone. You change them in Cloudflare, not on your site: see <a href="#cloudflare">if your site is behind Cloudflare</a>.</p>';
+              html += '<p>Lines ' + r.cf.from + ' to ' + r.cf.to + ' were written by Cloudflare, not by your website. They ask AI training bots to stay away and leave search bots alone. One of them, Google-Extended, also decides whether the Gemini apps use your pages in their answers. You change them in Cloudflare, not on your site: see <a href="#cloudflare">if your site is behind Cloudflare</a>.</p>';
             }
             html += '</div>';
 
@@ -375,4 +375,4 @@ category: DeveloperApplication
           [fileIn, urlsIn, otherIn].forEach(function (el) { el.addEventListener('input', render); });
           $('rbt-botlist').addEventListener('change', render);
         })();
-      </script><!-- end parser and matcher -->
+      </script><!-- end robots.txt parser and matcher -->
