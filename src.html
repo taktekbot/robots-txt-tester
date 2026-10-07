@@ -33,7 +33,7 @@ category: DeveloperApplication
       <p>These are the rules Google publishes for its crawlers, from RFC 9309 and Google's own <a href="https://developers.google.com/search/docs/crawling-indexing/robots/robots_txt">robots.txt specification</a>. Most other well-behaved bots, Bing's included, follow the same standard.</p>
       <ol>
         <li><strong>One group per bot.</strong> A bot uses the group with its own name and ignores the rest. Only if there is no group with its name does it use <code>User-agent: *</code>. The two are never combined. So if you add a <code>User-agent: Googlebot</code> group, Googlebot stops reading your <code>*</code> rules: copy any you still want into its group.</li>
-        <li><strong>Some bots answer to two names.</strong> Googlebot-Image and Googlebot-Video use their own group if there is one, and the Googlebot group if not. Apple's Applebot does the same: with no <code>User-agent: Applebot</code> group, it <a href="https://support.apple.com/en-us/119829">follows your Googlebot group</a>, not your <code>*</code> rules. So a <code>Googlebot</code> group also decides what Siri, Spotlight and Safari can find.</li>
+        <li><strong>Some bots answer to two names.</strong> Googlebot-Image and Googlebot-Video use their own group if there is one, and the Googlebot group if not. Apple's Applebot does the same: with no <code>User-agent: Applebot</code> group, it <a href="https://support.apple.com/en-us/119829">follows your Googlebot group</a>, not your <code>*</code> rules. So a <code>Googlebot</code> group also decides what Siri, Spotlight and Safari can find. Bingbot, with no group of its own, <a href="https://blogs.bing.com/webmaster/May-2012/To-crawl-or-not-to-crawl,-that-is-BingBot-s-questi/">follows an old <code>msnbot</code> group</a> before <code>*</code>.</li>
         <li><strong>Groups with the same name are merged.</strong> Two <code>User-agent: *</code> groups in one file count as one.</li>
         <li><strong>The longest matching rule wins.</strong> <code>Allow: /shop/sale</code> beats <code>Disallow: /shop</code> for <code>/shop/sale/mugs</code>, because it's longer. The order of the lines doesn't matter.</li>
         <li><strong>A tie goes to Allow.</strong> If an <code>Allow</code> and a <code>Disallow</code> are the same length and both match, the page is allowed.</li>
@@ -120,11 +120,11 @@ category: DeveloperApplication
 
       <script>/* robots.txt parser and matcher, following Google's open-source parser (github.com/google/robotstxt) */
         (function () {
-          // A bot answers to its own token first, then the fallbacks Google documents.
+          // A bot answers to its own token first, then the fallbacks its maker documents (Google, Apple, Bing).
           var BOTS = [
             ['Googlebot', ['googlebot'], true],
             ['Googlebot-Image', ['googlebot-image', 'googlebot'], false],
-            ['Bingbot', ['bingbot'], true],
+            ['Bingbot', ['bingbot', 'msnbot'], true],
             ['OAI-SearchBot', ['oai-searchbot'], false],
             ['GPTBot', ['gptbot'], false],
             ['Claude-SearchBot', ['claude-searchbot'], false],
