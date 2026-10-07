@@ -197,8 +197,20 @@
             'noindex': 'Google ignores <code>Noindex</code> in robots.txt. To keep a page out of search, allow crawling and add a <code>noindex</code> robots meta tag or <code>X-Robots-Tag</code> header to the page itself.',
             'nofollow': 'Google ignores <code>Nofollow</code> in robots.txt. Use a robots meta tag on the page instead.',
             'host': '<code>Host</code> isn’t part of the standard. Google ignores it.',
-            'clean-param': '<code>Clean-param</code> is read by Yandex only. Google ignores it.'
+            'clean-param': '<code>Clean-param</code> is read by Yandex only. Google ignores it.',
+            'license': '<code>License</code> points to your terms for using your content, under the RSL licensing standard. It isn’t a crawling rule, so it doesn’t allow or block any bot. This page skips it.'
           };
+          // Suggest a typo only when the field is close to a real one.
+          function nearField(k) {
+            return ['user-agent', 'allow', 'disallow', 'sitemap'].some(function (f) {
+              var d = [], i, j;
+              for (i = 0; i <= k.length; i++) d[i] = [i];
+              for (j = 1; j <= f.length; j++) d[0][j] = j;
+              for (i = 1; i <= k.length; i++) for (j = 1; j <= f.length; j++)
+                d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (k[i - 1] === f[j - 1] ? 0 : 1));
+              return d[k.length][f.length] <= 2;
+            });
+          }
 
           function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
@@ -221,7 +233,8 @@
             if (txt.charCodeAt(0) === 0xfeff) txt = txt.slice(1);
             var bytes = window.TextEncoder ? new TextEncoder().encode(txt).length : txt.length;
             if (bytes > 512000) warns.push([0, 'This file is over 500 KiB. Google ignores everything after the first 500 KiB.']);
-            if (/^\s*</.test(txt)) warns.push([1, 'This looks like a web page, not a text file. If your server answers <code>/robots.txt</code> with HTML, bots can’t read any rules from it.']);
+            // A web page gives a warning for every line of markup; one is enough.
+            if (/^\s*</.test(txt)) return { groups: [], warns: [[1, 'This looks like a web page, not a text file. If your server answers <code>/robots.txt</code> with HTML, bots can’t read any rules from it.']], sitemaps: 0, cf: null };
             var cf = null;
             txt.split(/\r\n|\r|\n/).forEach(function (raw, i) {
               var ln = i + 1; n = ln;
@@ -246,7 +259,8 @@
               if (k === 'user-agent') {
                 if (!lastWasAgent) { cur = { agents: [], rules: [], line: ln }; groups.push(cur); }
                 var t = agentToken(v);
-                if (!t) warns.push([ln, 'This <code>User-agent</code> line has no bot name.']);
+                if (!t && v) warns.push([ln, 'Bot names here may only use letters, <code>-</code> and <code>_</code> (RFC 9309), so Google’s parser can’t match <code>' + esc(v) + '</code> to any bot, and this page doesn’t either. The bot itself may still read it: check its own docs for the name to use.']);
+                else if (!t) warns.push([ln, 'This <code>User-agent</code> line has no bot name.']);
                 else cur.agents.push({ token: t, text: v });
                 lastWasAgent = true;
                 return;
@@ -266,7 +280,7 @@
                 return;
               }
               // Other fields don't end a group (Google's spec).
-              warns.push([ln, IGNORED[k] || '<code>' + esc(m[1]) + '</code> isn’t a robots.txt field, so it’s ignored. A typo for <code>Disallow</code> or <code>User-agent</code>?']);
+              warns.push([ln, IGNORED[k] || '<code>' + esc(m[1]) + '</code> isn’t a robots.txt field, so ' + (nearField(k) ? 'it’s ignored. A typo for <code>Disallow</code> or <code>User-agent</code>?' : 'Google ignores it. Other bots skip it unless they define it themselves.')]);
             });
             groups.forEach(function (g) {
               // A path that doesn't start with / or * can't match: every tested path starts with /.
@@ -397,8 +411,17 @@
             if (r.sitemaps === 0 && !noAgents) warns.push([0, 'No <code>Sitemap:</code> line. It’s optional, but it’s an easy way to tell every search engine where your sitemap is.']);
             if (warns.length) {
               warns.sort(function (a, b) { return a[0] - b[0]; });
-              html += '<h3>Things to fix or know</h3><ul class="rbt-warns">' + warns.map(function (w) {
-                return '<li><span class="rbt-warns__at">' + (w[0] ? 'line ' + w[0] : 'file') + '</span><span>' + w[1] + '</span></li>';
+              // The same note on many lines (24 Clean-param lines) is shown once, with its line numbers.
+              var seen = {}, merged = [];
+              warns.forEach(function (w) {
+                if (w[0] && seen[w[1]]) { seen[w[1]].push(w[0]); return; }
+                var at = [w[0]];
+                if (w[0]) seen[w[1]] = at;
+                merged.push([at, w[1]]);
+              });
+              html += '<h3>Things to fix or know</h3><ul class="rbt-warns">' + merged.map(function (w) {
+                var at = w[0], where = !at[0] ? 'file' : at.length === 1 ? 'line ' + at[0] : at.length <= 3 ? 'lines ' + at.join(', ') : at.length + ' lines, from ' + at[0];
+                return '<li><span class="rbt-warns__at">' + where + '</span><span>' + w[1] + '</span></li>';
               }).join('') + '</ul>';
             }
 
