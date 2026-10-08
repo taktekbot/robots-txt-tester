@@ -1,6 +1,6 @@
 # robots.txt tester
 
-Paste a robots.txt and a list of URLs, tick the bots (Googlebot, Bingbot, the AI search and training bots, or any name you type), and see which URLs each bot may crawl and the exact line that decided it. It also lists the mistakes in the file: a leftover `Disallow: /`, `Noindex:` and `Crawl-delay:` lines Google ignores, full URLs in rules, relative sitemap addresses, rules outside any group, misspelled fields.
+Paste a robots.txt and a list of URLs, tick the bots (Googlebot, Bingbot, the AI search and training bots, or any name you type), and see which URLs each bot may crawl and the exact line that decided it. It also lists the mistakes in the file: a leftover `Disallow: /`, `Noindex:` and `Crawl-delay:` lines Google ignores, full URLs in rules, relative sitemap addresses, rules outside any group, misspelled fields. If what you paste is a firewall's check page (Cloudflare's "Just a moment...", Vercel Security Checkpoint) instead of the file, it says so and points to Search Console's robots.txt report, which shows what Google itself fetched.
 
 Use it to test a new robots.txt before you publish it. Google's Search Console no longer has a tester you can paste a draft into. The page also says where to change the file on WordPress, Wix, Squarespace, Shopify and hand-uploaded sites, with a link to each one's own guide.
 

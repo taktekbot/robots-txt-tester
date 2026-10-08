@@ -51,7 +51,7 @@ category: DeveloperApplication
         <li><strong>Relative sitemap addresses.</strong> <code>Sitemap:</code> needs the full address, starting with <code>https://</code>.</li>
         <li><strong>Misspelled fields</strong> like <code>Disalow</code> or <code>Useragent</code>. Google reads a few common ones anyway; other bots may skip the line.</li>
         <li><strong>Rules above the first <code>User-agent</code></strong>, which belong to no group and are ignored.</li>
-        <li><strong>A web page instead of a text file.</strong> Some servers answer <code>/robots.txt</code> with an HTML page.</li>
+        <li><strong>A web page instead of a text file.</strong> Some servers answer <code>/robots.txt</code> with an HTML page. If it's a firewall's check page (“Just a moment...”), the tester says so: that page is what you got, not necessarily what Google got.</li>
       </ul>
 
       <h2 id="where-to-change">Where to change your robots.txt</h2>
@@ -136,7 +136,7 @@ category: DeveloperApplication
           // Misspellings Google's open-source parser accepts (github.com/google/robotstxt).
           var TYPOS = { 'useragent': 'user-agent', 'user agent': 'user-agent', 'dissallow': 'disallow', 'dissalow': 'disallow', 'disalow': 'disallow', 'diasllow': 'disallow', 'disallaw': 'disallow', 'site-map': 'sitemap' };
           var IGNORED = {
-            'content-signal': '<code>Content-signal</code> says what your content may be used for (search, AI answers, AI training). Cloudflare adds it, and it isn\u2019t part of the robots.txt standard, so it doesn\u2019t allow or block crawling. This page skips it.',
+            'content-signal': '<code>Content-signal</code> says what your content may be used for (search, AI answers, AI training). Cloudflare adds it, and some sites write it themselves. It isn\u2019t part of the robots.txt standard, so it doesn\u2019t allow or block crawling. This page skips it.',
             'crawl-delay': 'Google ignores <code>Crawl-delay</code>. Some other crawlers read it.',
             'noindex': 'Google ignores <code>Noindex</code> in robots.txt. To keep a page out of search, allow crawling and add a <code>noindex</code> robots meta tag or <code>X-Robots-Tag</code> header to the page itself.',
             'nofollow': 'Google ignores <code>Nofollow</code> in robots.txt. Use a robots meta tag on the page instead.',
@@ -172,13 +172,18 @@ category: DeveloperApplication
             return m ? m[0].toLowerCase() : '';
           }
 
+          var BOT_WALL = /challenges\.cloudflare\.com|\/cdn-cgi\/challenge-platform\/h\/|challenge-error-text|cf-error-details|px-captcha|_Incapsula_Resource|captcha-delivery\.com|awswaf|AKAM_REF|bm-verify|sec-if-cpt|jsc_token|ChallengeError|Vercel Security Checkpoint/i;
           function parse(txt) {
             var groups = [], cur = null, lastWasAgent = false, warns = [], sitemaps = 0, n = 0;
             if (txt.charCodeAt(0) === 0xfeff) txt = txt.slice(1);
             var bytes = window.TextEncoder ? new TextEncoder().encode(txt).length : txt.length;
             if (bytes > 512000) warns.push([0, 'This file is over 500 KiB. Google ignores everything after the first 500 KiB.']);
             // A web page gives a warning for every line of markup; one is enough.
-            if (/^\s*</.test(txt)) return { groups: [], warns: [[1, 'This looks like a web page, not a text file. If your server answers <code>/robots.txt</code> with HTML, bots can’t read any rules from it.']], sitemaps: 0, cf: null };
+            if (/^\s*</.test(txt)) {
+              // A security service's check page ("Just a moment…") is what curl or a browser got, not the file.
+              if (BOT_WALL.test(txt)) return { groups: [], warns: [], sitemaps: 0, cf: null, wall: true };
+              return { groups: [], warns: [[1, 'This looks like a web page, not a text file. If your server answers <code>/robots.txt</code> with HTML, bots can’t read any rules from it.']], sitemaps: 0, cf: null };
+            }
             var cf = null;
             txt.split(/\r\n|\r|\n/).forEach(function (raw, i) {
               var ln = i + 1; n = ln;
@@ -312,7 +317,9 @@ category: DeveloperApplication
             tests.forEach(function (u) { bots.forEach(function (b) { if (!decide(r.groups, b[1], u.norm).ok) blockedCount[b[0]] = (blockedCount[b[0]] || 0) + 1; }); });
 
             html += '<div class="rbt-sum">';
-            if (noAgents && /content.?signal/i.test(txt)) {
+            if (r.wall) {
+              html += '<p class="rbt-big">This is a security check page, not your robots.txt.</p><p>A firewall (Cloudflare, Vercel or similar) took whoever fetched the file for a robot and sent this page instead. It says nothing about what Google gets. In Search Console, open Settings, then robots.txt: \u201cFetched\u201d means Google read your real file. To test your rules here, open <code>/robots.txt</code> in an ordinary browser window and paste the text it shows.</p>';
+            } else if (noAgents && /content.?signal/i.test(txt)) {
               html += '<p class="rbt-big">This is Cloudflare\u2019s notice, and it blocks nothing.</p><p>Cloudflare shows it on sites that have no robots.txt of their own. It\u2019s all comments, with no <code>User-agent</code> line, so every bot may crawl every page. Cloudflare can still turn bots away with its own settings, which robots.txt never shows: see <a href="#cloudflare">if your site is behind Cloudflare</a>.</p>';
             } else if (noAgents) {
               html += '<p class="rbt-big">No <code>User-agent</code> line, so this file blocks nothing.</p><p>Every bot may crawl every page. If that’s what you want, it’s fine (so is having no robots.txt at all).</p>';
