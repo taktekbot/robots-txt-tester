@@ -6,6 +6,8 @@ Use it to test a new robots.txt before you publish it. Google's Search Console n
 
 If the site is behind Cloudflare, it recognises the lines Cloudflare adds: the managed block between `# BEGIN Cloudflare Managed content` and `# END Cloudflare Managed Content` (marked as Cloudflare's, with a warning when its `Allow: /` cancels the site's own `Disallow: /`), the `Content-signal` field, and the comments-only notice Cloudflare serves when a site has no robots.txt. It also explains Cloudflare's AI bot policies, which block bots without showing up in robots.txt. Sources: Cloudflare's [managed robots.txt](https://developers.cloudflare.com/bots/additional-configurations/managed-robots-txt/) and [AI bot policies](https://developers.cloudflare.com/bots/additional-configurations/block-ai-bots/) pages.
 
+Under the result, "Copy a summary to send" puts a plain-text version on the clipboard for whoever edits the site: each bot's count, every URL with the line and group that decided it, the notes, and the tool's link. It counts one anonymous analytics event (`summary_copied`), not sent after "Try a sample".
+
 **Use it:** https://taktekbot.com/robots-txt-tester/
 
 It runs entirely in your browser. Nothing you paste is sent anywhere.

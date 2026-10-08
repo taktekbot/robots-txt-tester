@@ -174,6 +174,10 @@
         .post .rbt-res code { font-size: 13px; overflow-wrap: anywhere; }
         .rbt-ok { color: var(--signal); font-weight: 600; }
         .rbt-bad { color: var(--paper); background: var(--ink); font-weight: 600; padding: 0 5px; border-radius: 3px; }
+        .post .rbt-sum .rbt-note { margin-top: 14px; font-size: 14px; }
+        .post .rbt-copy { font-family: var(--mono); font-size: 13px; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 6px 10px; cursor: pointer; }
+        .post .rbt-copy:hover { border-color: var(--signal); color: var(--signal); }
+        .post .rbt-copy:focus-visible { outline: 2px solid var(--signal); outline-offset: 1px; }
       </style>
 
       <script>/* robots.txt parser and matcher, following Google's open-source parser (github.com/google/robotstxt) */
@@ -341,7 +345,7 @@
           }
 
           var $ = function (id) { return document.getElementById(id); };
-          var fileIn = $('rbt-file'), urlsIn = $('rbt-urls'), otherIn = $('rbt-other'), out = $('rbt-out'), counted = false;
+          var fileIn = $('rbt-file'), urlsIn = $('rbt-urls'), otherIn = $('rbt-other'), out = $('rbt-out'), counted = false, sampled = false, summary = '';
           $('rbt-botlist').innerHTML = BOTS.map(function (b, i) {
             return '<label><input type="checkbox" value="' + i + '"' + (b[2] ? ' checked' : '') + '> ' + b[0] + '</label>';
           }).join('');
@@ -356,6 +360,7 @@
 
           function render() {
             var txt = fileIn.value;
+            summary = '';
             if (!txt.trim()) { out.innerHTML = ''; return; }
             var r = parse(txt), bots = chosenBots(), urls = readUrls(urlsIn.value), html = '';
             var noAgents = !r.groups.length;
@@ -393,15 +398,17 @@
                 var note = '';
                 if (g.token && g.token !== b[1][0]) note = '. It has no group of its own, so it follows your <code>User-agent: ' + esc(g.label) + '</code> group' + (hasStar ? ', not your <code>*</code> rules' : '') + '.';
                 else if (g.token && hasStar) note = '. It has its own group, so your <code>User-agent: *</code> rules don\u2019t apply to it.';
-                return '<p><strong>' + esc(b[0]) + '</strong>: ' + (c ? '<span class="rbt-bad">' + c + ' of ' + tests.length + ' blocked</span>' : '<span class="rbt-ok">all ' + tests.length + ' allowed</span>') + note + '</p>';
+                return '<p><strong>' + esc(b[0]) + '</strong>: ' + (c ? '<span class="rbt-bad">' + c + ' of ' + tests.length + ' blocked</span>' : '<span class="rbt-ok">' + (tests.length === 1 ? 'allowed' : 'all ' + tests.length + ' allowed') + '</span>') + note + '</p>';
               }).join('');
             }
+            var testable = bots.length && !noAgents && !r.wall;
+            if (testable) html += '<p class="rbt-note"><button type="button" class="rbt-copy" id="rbt-copy">Copy a summary to send</button> to whoever edits your site.</p>';
             if (r.cf) {
               html += '<p>Lines ' + r.cf.from + ' to ' + r.cf.to + ' were written by Cloudflare, not by your website. They ask AI training bots to stay away and leave search bots alone. One of them, Google-Extended, also decides whether the Gemini apps use your pages in their answers. You change them in Cloudflare, not on your site: see <a href="#cloudflare">if your site is behind Cloudflare</a>.</p>';
             }
             html += '</div>';
 
-            var warns = r.warns.slice();
+            var warns = r.warns.slice(), merged = [];
             // Cloudflare's block has its own User-agent: * group with Allow: /. Groups with the same name merge,
             // and a tie goes to Allow, so it cancels the site's own Disallow: / for every bot that reads the * group.
             if (r.cf) {
@@ -421,7 +428,7 @@
             if (warns.length) {
               warns.sort(function (a, b) { return a[0] - b[0]; });
               // The same note on many lines (24 Clean-param lines) is shown once, with its line numbers.
-              var seen = {}, merged = [];
+              var seen = {};
               warns.forEach(function (w) {
                 if (w[0] && seen[w[1]]) { seen[w[1]].push(w[0]); return; }
                 var at = [w[0]];
@@ -448,8 +455,47 @@
               }).join('');
               if (!counted && urls.list.length && window.gtag) { counted = true; gtag('event', 'robots_tested'); }
             }
+            if (testable) summary = makeSummary(r, bots, tests, big, blockedCount, merged);
             out.innerHTML = html;
           }
+
+          // Plain text for whoever edits the site: the verdicts, the line behind each block, and the notes.
+          function plain(html) { var t = document.createElement('div'); t.innerHTML = html; return t.textContent.replace(/\s+/g, ' ').trim(); }
+          function makeSummary(r, bots, tests, big, blockedCount, merged) {
+            var isCf = function (ln) { return r.cf && ln >= r.cf.from && ln <= r.cf.to; };
+            var lines = ['robots.txt check: ' + (big.length ? 'the home page is blocked for ' + big.join(', ') : 'the home page is open to every bot tested') + '.', ''];
+            bots.forEach(function (b) {
+              var c = blockedCount[b[0]] || 0;
+              lines.push(b[0] + ': ' + (c ? c + ' of ' + tests.length + ' blocked' : tests.length === 1 ? 'allowed' : 'all ' + tests.length + ' allowed'));
+            });
+            if (r.cf) lines.push('', 'Lines ' + r.cf.from + ' to ' + r.cf.to + ' were written by Cloudflare (managed robots.txt). They are changed in Cloudflare, not on the site.');
+            lines.push('');
+            tests.forEach(function (u) {
+              lines.push(u.shown);
+              bots.forEach(function (b) {
+                var d = decide(r.groups, b[1], u.norm);
+                lines.push('- ' + b[0] + ': ' + (d.ok ? 'allowed' : 'BLOCKED') + (d.group === null ? ' (no group for this bot and no User-agent: * group)'
+                  : (d.rule ? ' by line ' + d.rule.line + ': ' + d.rule.text + (isCf(d.rule.line) ? ' (written by Cloudflare)' : '') : ', no rule matches') + ', in the User-agent: ' + d.group + ' group'));
+              });
+            });
+            if (merged.length) {
+              lines.push('', 'Things to fix or know:');
+              merged.forEach(function (w) {
+                var at = w[0], where = !at[0] ? 'File' : at.length === 1 ? 'Line ' + at[0] : at.length <= 3 ? 'Lines ' + at.join(', ') : at.length + ' lines, from ' + at[0];
+                lines.push('- ' + where + ': ' + plain(w[1]));
+              });
+            }
+            lines.push('', 'Read by the rules Google publishes for robots.txt (RFC 9309). Most other well-behaved bots follow the same standard.');
+            lines.push('Checked with https://taktekbot.com/robots-txt-tester/');
+            return lines.join('\n');
+          }
+          out.addEventListener('click', function (e) {
+            var b = e.target.closest('#rbt-copy'); if (!b || !summary) return;
+            var done = function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy a summary to send'; }, 1500); };
+            if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(summary).then(done, function () { b.textContent = 'Couldn\u2019t copy: your browser blocked it'; });
+            else b.textContent = 'Couldn\u2019t copy: your browser blocked it';
+            if (!sampled && window.gtag) gtag('event', 'summary_copied');
+          });
 
           $('rbt-sample').addEventListener('click', function () {
             // A sample isn't a use: hold the use event back while it runs, and count the click as its own event.
@@ -457,11 +503,11 @@
             fileIn.value = 'User-agent: *\nDisallow: /cart\nDisallow: /search\nDisallow: /*.pdf$\nAllow: /search/help\nCrawl-delay: 10\n\nUser-agent: Googlebot\nDisallow: /cart\n\nUser-agent: GPTBot\nDisallow: /\n\nNoindex: /old-prices\nSitemap: /sitemap.xml\n';
             urlsIn.value = '/\n/cart?item=12\n/search?q=mugs\n/search/help\n/files/price-list.pdf\n/files/price-list.pdf?v=2';
             render();
-            counted = c;
+            counted = c; sampled = true;
             if (window.gtag) gtag('event', 'sample_tried');
           });
-          [fileIn, urlsIn, otherIn].forEach(function (el) { el.addEventListener('input', render); });
-          $('rbt-botlist').addEventListener('change', render);
+          [fileIn, urlsIn, otherIn].forEach(function (el) { el.addEventListener('input', function () { sampled = false; render(); }); });
+          $('rbt-botlist').addEventListener('change', function () { sampled = false; render(); });
         })();
       </script><!-- end robots.txt parser and matcher -->
       <p class="sign"><svg class="agent" style="--a:18px" viewBox="0 0 100 100" aria-hidden="true"><use href="#agent"/></svg>Made by taktekbot. Free and open source: <a href="https://github.com/taktekbot/robots-txt-tester">github.com/taktekbot/robots-txt-tester</a></p>
