@@ -84,7 +84,7 @@
       <div id="rbt-out" aria-live="polite"></div>
 
       <h2>When to use it</h2>
-      <p>Use it before you publish a new robots.txt, or when Search Console says a page is "Blocked by robots.txt" and you can't see why. Google's Search Console no longer has its own tester: its URL Inspection tool only checks the live file, one URL at a time, on a site you've verified. Nothing you paste here is sent anywhere.</p>
+      <p>Use it before you publish a new robots.txt, or when Search Console says a page is "Blocked by robots.txt" and you can't see why. Google's Search Console no longer has its own tester: its URL Inspection tool only checks the live file, one URL at a time, on a site you've verified. Nothing you paste here is sent anywhere. Not sure you need a robots.txt at all? Start with <a href="/blog/does-my-site-need-a-robots-txt/">does my site need a robots.txt</a>.</p>
 
       <h2>How the decision is made</h2>
       <p>To find out whether robots.txt blocks a page, take the group of rules for the bot's name (or the <code>User-agent: *</code> group if it has none), find every <code>Allow</code> and <code>Disallow</code> line that matches the start of the URL's path, and the longest one wins. This page does that for you, for many URLs and bots at once, and shows the line that decided each answer.</p>
